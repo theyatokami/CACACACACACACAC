@@ -6,7 +6,7 @@ function [distanceToNode, parentOfNode, nodeTrajectory] = dijkstra(nbNodes, visi
 %
 % Inputs:
 %	-nbNodes: number of nodes of the graph excluding the starting and goal points
-%	-visibilityGraph: a matrix containing the distance between connected nodes 
+%	-visibilityGraph: a matrix containing the distance between connected nodes
 %		(NaN refers to not connected nodes)
 %		The matrix has a size of (nbNodes+2)x(nbNodes+2)
 %		The first row/col corresponds to the Starting point, the last row/col to the Goal point.
@@ -38,9 +38,9 @@ while (sum(visitedNodes(:)==0))
 			thresholdDistance = distanceToNode(l_node);
 		end
 	end
-	
+
 	fprintf('-->Visiting N%d\n', minIndex-1)
-	
+
 	visitedNodes(minIndex) = 1;
 	for l_node=1:nbNodes+2
 		%l_node
@@ -58,14 +58,14 @@ fprintf('##Results\n')
 fprintf('Minimal distance to target: %d\n', distanceToNode(nbNodes+2))
 nodeIndex = nbNodes+2;
 nodeTrajectory = [];
-while(nodeIndex~=1)
-	nodeIndex = parentOfNode(nodeIndex);
-	nodeTrajectory = [nodeTrajectory nodeIndex];
+while (nodeIndex ~= 1)
+    if nodeIndex <= 0 || nodeIndex > length(parentOfNode)
+        error('Invalid node index encountered. Path reconstruction failed.');
+    end
+    nodeIndex = parentOfNode(nodeIndex);
+    nodeTrajectory = [nodeTrajectory nodeIndex];
 end
-fprintf('S-->');
-for l_node=2:length(nodeTrajectory)
-	fprintf('N%d-->', nodeTrajectory(length(nodeTrajectory)-(l_node-1))-1);
-end
+
 fprintf('G\n');
 fprintf('########\n');
 

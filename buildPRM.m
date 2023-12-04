@@ -1,29 +1,31 @@
-function [q1q2_valid, obstacles] = buildPRM(L1, L2, nbPoints)
+function [q1q2_valid, obstacles, connectionMap] = buildPRM(L1, L2, nbPoints)
 %%%%%%%%%%%%%%%%%%
 %function buildPRM(L1, L2, nbPoints)
 % ex. buildPRM(2000, 1000, 10)
 %
 % Inputs:
-%	-L1: lenght of the first link (in mm)
+%	-L1: length of the first link (in mm)
 %	-L2: length of the second link (in mm)
 %	-nbPoints: the number of valid points in the roadmap
 %
-% Outputs: None
+% Outputs:
+%	-q1q2_valid: valid joint configurations [q1, q2]
+%	-obstacles: array of obstacle structures
 %
 % author: Guillaume Gibert, guillaume.gibert@ecam.fr
 % date: 22/11/2023
 %%%%%%%%%%%%%%%%%%
 
 % Initialize variables
-    q1q2_valid = [];
-    q1q2_2d = [];
-    counter = 0;
-    inner = L1 - L2;
+q1q2_valid = [];
+q1q2_2d = [];
+counter = 0;
+inner = L1 - L2;
 
 % Define circular obstacles with placeholder values for rectangle fields
 circleObstacle1 = struct('type', 'circle', 'center', [1500; 500], 'radius', 400, 'corner', [0; 0], 'width', 0, 'height', 0);
 circleObstacle2 = struct('type', 'circle', 'center', [2000; -800], 'radius', 500, 'corner', [0; 0], 'width', 0, 'height', 0);
-circleObstacle3 = struct('type', 'circle', 'center', [0; 0], 'radius', inner , 'corner', [0; 0], 'width', 0, 'height', 0);
+circleObstacle3 = struct('type', 'circle', 'center', [0; 0], 'radius', inner, 'corner', [0; 0], 'width', 0, 'height', 0);
 
 % Define rectangular obstacles with placeholder values for circle fields
 rectObstacle1 = struct('type', 'rectangle', 'corner', [-2000; -2000], 'width', 600, 'height', 1000, 'center', [0; 0], 'radius', 0);
@@ -35,85 +37,82 @@ obstacles = [circleObstacle1, circleObstacle2, circleObstacle3, rectObstacle1, r
 % creates a figure
 figure;
 
-while (size(q1q2_valid,2) < nbPoints)
-	% samples randomly the joint space
-	q1 = rand()*360.0;
-	q2 = rand()*360.0;
+while (size(q1q2_valid, 2) < nbPoints)
+    % Sample random points within the workspace boundaries
+    q1 = rand() * 360.0;
+    q2 = rand() * 360.0;
 
-	% creates the DH table
-	theta = [q1; q2];
-	d = [0; 0];
-	a = [L1; L2];
-	alpha = [0; 0];
+    % Check if the randomly sampled point is within the workspace and not in obstacles
+    if (q1 >= 0 && q1 <= 360) && (q2 >= 0 && q2 <= 360)
+        % creates the DH table
+        theta = [q1; q2];
+        d = [0; 0];
+        a = [L1; L2];
+        alpha = [0; 0];
 
-	% computes the FK
-	wTee = dh2ForwardKinematics(theta, d, a, alpha, 1);
+        % computes the FK
+        wTee = dh2ForwardKinematics(theta, d, a, alpha, 1);
 
-	% determines the position of the end-effector
-	position_ee = wTee(1:2,end);
+        % determines the position of the end-effector
+        position_ee = wTee(1:2, end);
 
-	% checks if the end-effector is not hitting any obstacle
-	eeHittingObstacle = 0;
+        % Check if the end-effector is not hitting any obstacle
+        eeHittingObstacle = 0;
 
-
-  inAnyObstacle = false;
-    for obs = obstacles
-        if strcmp(obs.type, 'circle') && isPointInCircle(position_ee, obs.center, obs.radius)
-            inAnyObstacle = true;
-            break;
-        elseif strcmp(obs.type, 'rectangle') && isPointInRectangle(position_ee, obs)
-            inAnyObstacle = true;
-            break;
+        inAnyObstacle = false;
+        for obs = obstacles
+            if strcmp(obs.type, 'circle') && isPointInCircle(position_ee, obs.center, obs.radius)
+                inAnyObstacle = true;
+                break;
+            elseif strcmp(obs.type, 'rectangle') && isPointInRectangle(position_ee, obs)
+                inAnyObstacle = true;
+                break;
+            end
         end
-    end
 
-	% stores these random values
-
-
-	  if (eeHittingObstacle == 0) && (inAnyObstacle == false)
+        % Store these random values
+        if (eeHittingObstacle == 0) && (inAnyObstacle == false)
             % Store and plot valid points
             q1q2_valid = [q1q2_valid theta];
             subplot(1, 2, 1);
-            plot(q1, q2, '+g'); hold on;
+            plot(q1, q2, '+g');
+            hold on;
             subplot(1, 2, 2);
-            plot(position_ee(1), position_ee(2), '+g'); hold on;
+            plot(position_ee(1), position_ee(2), '+g');
+            hold on;
         else
             % Plot invalid points
             subplot(1, 2, 1);
-            plot(q1, q2, '*r'); hold on;
+            plot(q1, q2, '*r');
+            hold on;
             subplot(1, 2, 2);
-            plot(position_ee(1), position_ee(2), '*r'); hold on;
+            plot(position_ee(1), position_ee(2), '*r');
+            hold on;
         end
 
         counter = counter + 1;
     end
+end
 
-% displays stats
-fprintf("%d points were sorted to achieve %d valid points\n", counter, nbPoints)
+% Display stats
+fprintf("%d points were sorted to achieve %d valid points\n", counter, nbPoints);
 
-% add limits, lables and obstacles to the map
-subplot(1,2,1);
-	xlim([0 360]);
-	ylim([0 360]);
+% add limits, labels, and obstacles to the map
+subplot(1, 2, 1);
+xlim([0 360]);
+ylim([0 360]);
+xlabel('q1(deg)');
+ylabel('q2(deg)');
+title('Joint space');
 
-	xlabel('q1(deg)');
-	ylabel('q2(deg)');
-	title('Joint space');
-
-subplot(1,2,2);
-
-
-
-	drawCircle(0,0, L1+L2);
-	drawCircle(0,0, L1-L2);
-
-	xlim([-(L1+L2) (L1+L2)]);
-	ylim([-(L1+L2) (L1+L2)]);
-
-	xlabel('x(mm)');
-	ylabel('y(mm)');
-	title('Cartesian space');
-
+subplot(1, 2, 2);
+drawCircle(0, 0, L1 + L2);
+drawCircle(0, 0, L1 - L2);
+xlim([-(L1 + L2) (L1 + L2)]);
+ylim([-(L1 + L2) (L1 + L2)]);
+xlabel('x(mm)');
+ylabel('y(mm)');
+title('Cartesian space');
 % creates a connection map
 connectionMap = zeros(nbPoints, nbPoints);
 % After generating q1q2_valid but before the plotting section
@@ -130,11 +129,11 @@ for i = 1:size(q1q2_valid, 2)
     end
 end
 
- % Convert q1q2_valid into 2D Cartesian coordinates
-    for i = 1:size(q1q2_valid, 2)
-        pos = dh2ForwardKinematics([q1q2_valid(1, i); q1q2_valid(2, i)], [0; 0], [L1; L2], [0; 0], 1)(1:2, end);
-        q1q2_2d = [q1q2_2d, pos]; % Append the 2D position
-    end
+% Convert q1q2_valid into 2D Cartesian coordinates
+for i = 1:size(q1q2_valid, 2)
+    pos = dh2ForwardKinematics([q1q2_valid(1, i); q1q2_valid(2, i)], [0; 0], [L1; L2], [0; 0], 1)(1:2, end);
+    q1q2_2d = [q1q2_2d, pos]; % Append the 2D position
+end
 
 % Plotting connections between valid points
 for i = 1:size(q1q2_valid, 2)
